@@ -1,0 +1,18 @@
+/* 설치형 오프라인 앱 껍데기(준비·비밀번호·계산 중 표시). 화면 본문 스타일은 app.css(사내 서버판과 같음). */
+#boot main { padding-top: 18px; }
+.progress { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 10px 0 4px; }
+.progress > div { height: 100%; width: 4%; background: var(--brand); border-radius: 999px; transition: width .25s ease; }
+#lock label.f { margin: 10px 0 0; }
+#busy { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(15, 20, 25, .28); }
+#busy[hidden] { display: none; }
+.busy-box { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 14px; background: var(--card); color: var(--ink);
+  border: 1px solid var(--line); font-weight: 700; }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--brand); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#toast { position: fixed; left: 16px; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 60; max-width: 688px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 12px;
+  background: var(--ink); color: var(--bg); font-size: 14px; }
+#toast[hidden] { display: none; }
+#toast button { flex: 0 0 auto; border: 0; border-radius: 10px; padding: 8px 12px; font: inherit; font-weight: 700; background: var(--brand); color: #fff; }
+a.btn.ready { background: var(--ok); border-color: var(--ok); color: #fff; }
+.err { white-space: pre-wrap; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
