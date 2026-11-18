@@ -190,12 +190,38 @@
     document.querySelectorAll("#app [data-when]").forEach((el) => {
       const [k, v] = el.dataset.when.split("=");
       const r = document.querySelector(`#app input[name="${k}"]:checked`);
-      el.style.display = r && r.value === v ? "" : "none";
+      el.style.display = r && v.split("|").includes(r.value) ? "" : "none";     // data-when="md_mode=flow|ww"
     });
   }
+  // 최근 결과(설계·판정 입력)를 이 휴대폰에 기억 — 대시보드 탭·설계/판정 전환·입력 화면 채우기에 쓴다
+  function lastGet() {
+    try { return JSON.parse(localStorage.getItem("fpapp-last") || "{}"); } catch (e) { return {}; }
+  }
+  function lastSet(mode, query) {
+    try {
+      const v = lastGet();
+      v[mode] = query;
+      v.mode = mode;
+      localStorage.setItem("fpapp-last", JSON.stringify(v));
+    } catch (e) { /* 저장이 안 되는 환경이면 기억하지 않는다 */ }
+  }
+
   async function route() {
     if (!st.rt) return;
-    const { path, query } = parseHash();
+    let { path, query } = parseHash();
+    const last = lastGet();
+    if (path === "/" && last.mode && last[last.mode]) {             // 대시보드 탭: 최근 결과로
+      location.replace("#/dash?" + last[last.mode]);
+      return;
+    }
+    if (path === "/switch") {                                       // 설계 ↔ 판정 전환
+      const mode = new URLSearchParams(query).get("mode") === "judge" ? "judge" : "design";
+      location.replace(last[mode] ? "#/dash?" + last[mode] : "#/" + mode);
+      return;
+    }
+    if ((path === "/design" || path === "/judge") && !query && last[path.slice(1)]) {
+      query = last[path.slice(1)];                                  // 입력 화면은 최근 입력으로 채운다
+    }
     if (path === "/logout") {
       if (confirm("이 휴대폰에서 잠글까요? 다시 열려면 직원 비밀번호가 필요합니다.")) {
         await kv("del", "keys");
@@ -220,7 +246,7 @@
     } catch (e) {
       console.error(e);
       st.lastError = String((e && e.message) || e);
-      html = '<header class="bar"><a class="back" href="#/" aria-label="처음 화면으로">‹</a><h1>오류</h1></header><main><section class="card">' +
+      html = '<header class="appbar"><div class="row"><a class="back" href="#/home" aria-label="처음 화면으로">‹</a><span class="title">오류</span></div></header><main><section class="card">' +
         '<h2>계산하지 못했습니다</h2><p class="muted">입력을 확인해 주세요. 계속되면 관리자에게 아래 내용을 보내 주세요.</p><pre class="err"></pre></section></main>';
     }
     busy(false);
@@ -230,6 +256,10 @@
     if (pre) pre.textContent = st.lastError;
     const t = app.querySelector("title-holder");
     document.title = t ? t.dataset.title : "필터프레스 선정·판정";
+    if (path === "/dash" && app.querySelector(".fpd")) {
+      const mode = new URLSearchParams(query).get("mode") === "judge" ? "judge" : "design";
+      lastSet(mode, query);
+    }
     syncWhen();
     window.scrollTo(0, 0);
   }

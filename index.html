@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1f5aa6">
+<meta name="theme-color" content="#ffffff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -12,6 +12,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="dash.css">
 <link rel="stylesheet" href="shell.css">
 <title>필터프레스 선정·판정</title>
 </head>
@@ -19,7 +20,7 @@
 <div id="app" hidden></div>
 
 <div id="boot">
-  <header class="bar"><h1>필터프레스 선정·판정</h1></header>
+  <header class="appbar"><div class="row"><img class="logo" src="logo.png" alt="DONGIL"><span class="title">필터프레스 선정·판정</span></div></header>
   <main>
     <section class="card" id="lock" hidden>
       <h2>직원 비밀번호</h2>
@@ -42,6 +43,7 @@
 <div id="toast" hidden><span id="toast-text"></span><button type="button" id="toast-btn" hidden></button></div>
 
 <script src="pyodide/314.0.7/pyodide.js"></script>
+<script src="dash.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
