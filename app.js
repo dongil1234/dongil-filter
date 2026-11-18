@@ -197,13 +197,24 @@
   function lastGet() {
     try { return JSON.parse(localStorage.getItem("fpapp-last") || "{}"); } catch (e) { return {}; }
   }
-  function lastSet(mode, query) {
+  function lastSet(mode, query, newCalc) {
     try {
       const v = lastGet();
+      // 새로 계산했으면(입력·예제에서 왔거나 입력이 바뀜) 입력 화면을 다시 그 입력으로 채운다. 대시보드 탭으로 옛 결과를 다시 볼 때는 그대로 둔다
+      if (v.fresh && (newCalc || v[mode] !== query)) delete v.fresh[mode];
       v[mode] = query;
       v.mode = mode;
       localStorage.setItem("fpapp-last", JSON.stringify(v));
     } catch (e) { /* 저장이 안 되는 환경이면 기억하지 않는다 */ }
+  }
+  // 입력 초기화: 마지막 결과(대시보드)는 남기고, 입력 화면만 다음 계산 전까지 비워 둔다
+  function freshSet(mode) {
+    try {
+      const v = lastGet();
+      v.fresh = v.fresh || {};
+      v.fresh[mode] = true;
+      localStorage.setItem("fpapp-last", JSON.stringify(v));
+    } catch (e) { /* 저장이 안 되면 이번 화면만 비운다 */ }
   }
 
   async function route() {
@@ -219,8 +230,15 @@
       location.replace(last[mode] ? "#/dash?" + last[mode] : "#/" + mode);
       return;
     }
-    if ((path === "/design" || path === "/judge") && !query && last[path.slice(1)]) {
-      query = last[path.slice(1)];                                  // 입력 화면은 최근 입력으로 채운다
+    if (path === "/design" || path === "/judge") {
+      const mode = path.slice(1);
+      if (new URLSearchParams(query).has("fresh")) {                // 입력 초기화 → 빈 입력 화면
+        freshSet(mode);
+        query = "";
+        history.replaceState(null, "", "#" + path);                 // 주소에 남기지 않는다(뒤로 가기·새로고침에 다시 지우지 않게)
+      } else if (!query && last[mode] && !(last.fresh && last.fresh[mode])) {
+        query = last[mode];                                         // 입력 화면은 최근 입력으로 채운다
+      }
     }
     if (path === "/logout") {
       if (confirm("이 휴대폰에서 잠글까요? 다시 열려면 직원 비밀번호가 필요합니다.")) {
@@ -258,17 +276,23 @@
     document.title = t ? t.dataset.title : "필터프레스 선정·판정";
     if (path === "/dash" && app.querySelector(".fpd")) {
       const mode = new URLSearchParams(query).get("mode") === "judge" ? "judge" : "design";
-      lastSet(mode, query);
+      lastSet(mode, query, st.newCalc);
     }
+    st.newCalc = false;
     syncWhen();
     window.scrollTo(0, 0);
   }
 
   document.addEventListener("change", (e) => { if (e.target && e.target.type === "radio") syncWhen(); });
+  // 입력 양식 제출·예제 결과 단추 = 새 계산(입력 초기화 표시를 푼다)
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.closest && e.target.closest('#app a[href^="#/dash?"]')) st.newCalc = true;
+  });
   document.addEventListener("submit", (e) => {
     const f = e.target;
     if (!f.closest || !f.closest("#app")) return;
     e.preventDefault();
+    st.newCalc = true;
     const qs = new URLSearchParams(new FormData(f)).toString();
     const target = (f.getAttribute("action") || "#/") + (qs ? "?" + qs : "");
     if (location.hash === target) route();

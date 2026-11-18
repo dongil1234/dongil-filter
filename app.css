@@ -19,6 +19,7 @@ header.appbar { position: sticky; top: 0; z-index: 20; background: #fff; color: 
   box-shadow: 0 2px 10px rgba(40, 70, 20, .08); }
 .appbar .row { position: relative; display: flex; align-items: center; justify-content: center; height: 54px; padding: 0 12px; }
 .appbar .logo { position: absolute; left: 12px; top: 50%; height: 30px; width: auto; transform: translateY(-50%); }
+.appbar .logo-link { display: block; }                                            /* 로고를 누르면 홈(처음 화면) */
 .appbar .title { font-size: 17px; font-weight: 800; letter-spacing: -.2px; color: var(--brand-3); }
 .appbar .back { position: absolute; left: 6px; top: 7px; width: 40px; height: 40px; display: grid; place-items: center; color: var(--brand); text-decoration: none; font-size: 28px; }
 .appbar .menu { position: absolute; right: 6px; top: 7px; }
@@ -35,6 +36,10 @@ nav.tabs { display: flex; gap: 6px; padding: 8px 10px 10px; background: #eef6e0;
 nav.tabs::-webkit-scrollbar { display: none; }
 nav.tabs a { flex: 0 0 auto; color: var(--brand-3); text-decoration: none; font-weight: 700; font-size: 15px; padding: 8px 18px; border-radius: 999px; }
 nav.tabs a.on { background: var(--brand); color: #fff; box-shadow: 0 2px 8px rgba(74, 132, 24, .3); }
+nav.tabs a.home { display: inline-flex; align-items: center; gap: 5px; padding-left: 13px; padding-right: 15px; }
+nav.tabs a.home .ico { width: 17px; height: 17px; }
+@media (max-width: 380px) { nav.tabs a { padding: 8px 13px; } nav.tabs a.home { padding: 8px 12px 8px 10px; } }   /* 좁은 휴대폰: 탭 4개가 한 줄에 */
+@media (min-width: 820px) { nav.tabs { justify-content: center; } }                                             /* PC: 가운데 본문에 맞춰 가운데로 */
 nav.tabs a em { font-style: normal; display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: 6px; border-radius: 999px;
   background: var(--bad); color: #fff; font-size: 12px; font-weight: 800; }
 nav.tabs a.on em { background: #fff; color: var(--bad); }
@@ -70,8 +75,13 @@ a.mode .go { margin-top: 8px; display: inline-block; font-weight: 800; color: va
 .btn.small { min-height: 38px; font-size: 14px; padding: 0 14px; border-radius: 999px; }
 .sticky-submit { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 35%); z-index: 10; }
 .sticky-submit .btn { max-width: 728px; margin: 0 auto; display: flex; width: 100%; box-shadow: 0 6px 18px rgba(74, 132, 24, .3); }
-.formhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 12px; }
+.formhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 12px; flex-wrap: wrap; }
 .formhead h2 { margin: 0; font-size: 19px; }
+.formhead .head-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.btn .ico { width: 17px; height: 17px; flex: 0 0 auto; }
+.btn.small { gap: 6px; }
+.btn.reset { color: #8a4b12; border-color: #e9c79a; background: #fff8ee; }       /* 입력 초기화: 지우는 단추라 주황빛 */
+.btn.reset:hover { background: #fdeed9; }
 
 /* ---------- 입력 ---------- */
 details.sec { background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin: 0 0 10px; box-shadow: 0 1px 2px rgba(40, 70, 20, .05); }

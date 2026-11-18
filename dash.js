@@ -6,6 +6,11 @@
   document.addEventListener("click", function (e) {
     var t = e.target;
     if (!t || !t.closest) return;
+    var cf = t.closest("a[data-confirm]");          // 입력 초기화 등: 한 번 묻고 진행
+    if (cf) {
+      if (!window.confirm(cf.getAttribute("data-confirm"))) e.preventDefault();
+      return;
+    }
     var all = t.closest(".fpd [data-all]");
     if (all) {
       var ds = all.closest(".fpd").querySelectorAll("details.dc");
