@@ -42,6 +42,24 @@
 <div id="busy" hidden><div class="busy-box"><div class="spinner"></div><span id="busy-text">계산 중…</span></div></div>
 <div id="toast" hidden><span id="toast-text"></span><button type="button" id="toast-btn" hidden></button></div>
 
+<!-- 확인 창(나가기·저장 덮어쓰기·지우기) -->
+<div id="dialog" hidden>
+  <div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-text">
+    <h3 id="dlg-title"></h3>
+    <p id="dlg-text"></p>
+    <div class="dlg-btns"><button type="button" id="dlg-cancel">취소</button><button type="button" id="dlg-ok">확인</button></div>
+  </div>
+</div>
+
+<!-- 저장한 입력 목록(불러오기) -->
+<div id="sheet" hidden>
+  <div class="sheet-box" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-head"><b id="sheet-title">저장한 입력</b><button type="button" id="sheet-close">닫기</button></div>
+    <p class="sheet-note">이 휴대폰에만 저장됩니다(앱을 나가도 남음). 앱을 지우거나 브라우저 저장 공간을 비우면 함께 지워집니다.</p>
+    <ul id="sheet-list"></ul>
+  </div>
+</div>
+
 <script src="pyodide/314.0.7/pyodide.js"></script>
 <script src="dash.js"></script>
 <script src="app.js"></script>

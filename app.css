@@ -73,8 +73,20 @@ a.mode .go { margin-top: 8px; display: inline-block; font-weight: 800; color: va
 .btn.block { display: flex; width: 100%; margin-top: 10px; }
 .btn.ready { background: var(--ok); border-color: var(--ok); color: #fff; }
 .btn.small { min-height: 38px; font-size: 14px; padding: 0 14px; border-radius: 999px; }
-.sticky-submit { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 35%); z-index: 10; }
-.sticky-submit .btn { max-width: 728px; margin: 0 auto; display: flex; width: 100%; box-shadow: 0 6px 18px rgba(74, 132, 24, .3); }
+.sticky-submit { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 35%); z-index: 10;
+  display: flex; gap: 8px; justify-content: center; }
+.sticky-submit .btn { margin: 0; display: flex; box-shadow: 0 6px 18px rgba(74, 132, 24, .3); }
+.sticky-submit .btn.primary { flex: 1 1 auto; max-width: 728px; }
+/* 설치형 앱: '입력 저장'(앱을 나가도 남게) — 계산 단추 옆 흰 단추 */
+.sticky-submit .btn.save { flex: 0 0 auto; gap: 6px; padding: 0 14px; background: #fff; color: var(--brand-3); border-color: #b9d585;
+  box-shadow: 0 4px 12px rgba(40, 70, 20, .14); }
+.sticky-submit .btn.save .ico { width: 18px; height: 18px; }
+.keep-note { margin: -6px 0 12px; padding: 9px 12px; border-radius: 10px; background: #fff8ee; border: 1px solid #f0d3a8; color: #7a4a10; font-size: 13px; }
+/* 설치형 앱: 머리의 '나가기'(정말 나가시겠습니까? → 입력값 지움) — 메뉴 단추 왼쪽 */
+.appbar .exit { position: absolute; right: 48px; top: 7px; width: 44px; height: 40px; padding: 0; border: 0; background: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: #4b5a42; font: inherit; font-size: 10.5px; font-weight: 700; }
+.appbar .exit .ico { width: 19px; height: 19px; }
+@media (max-width: 350px) { .appbar .title { font-size: 15px; } .appbar .exit { width: 36px; right: 46px; } .appbar .exit span { display: none; } }
 .formhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 12px; flex-wrap: wrap; }
 .formhead h2 { margin: 0; font-size: 19px; }
 .formhead .head-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }

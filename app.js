@@ -1,6 +1,8 @@
 // 필터프레스 선정·판정 — 설치형 오프라인 앱 껍데기(빌드할 때 314.0.7·["numpy", "pandas", "pyyaml", "jinja2"]가 채워진다).
 // 순서: 서비스 워커(앱 파일을 휴대폰에 저장) → 앱 자료(app.bin)를 직원 비밀번호로 풀기 → 휴대폰 속 파이썬(Pyodide) 준비 → 화면.
 // 화면 HTML과 엑셀은 파이썬(fpapp.offline.runtime)이 PC 앱과 같은 계산 엔진으로 만든다. 입력·결과는 휴대폰 밖으로 보내지 않는다.
+// 2026-11-19: 앱에 들어오면 늘 처음 화면(홈). 입력·결과는 이번 실행 동안만 남고(앱을 나가면 지움), '입력 저장'한 것만 이 휴대폰에 남는다.
+// '나가기'·맨 처음 화면에서 뒤로 가기 → '정말 나가시겠습니까?'(입력값이 지워진다는 안내) → 입력을 지우고 '닫아도 됩니다' 화면.
 "use strict";
 (() => {
   const PYODIDE_DIR = "pyodide/314.0.7/";
@@ -9,7 +11,8 @@
   const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   const $ = (id) => document.getElementById(id);
   const enc = new TextEncoder();
-  const st = { rt: null, py: null, hadController: false, lastError: "" };
+  // curIdx: 지금 화면이 앱을 연 뒤 몇 번째 칸인지, guarded: 뒤로 가기 지킴 칸을 뒀는지, exited: '나가기'를 했는지
+  const st = { rt: null, py: null, hadController: false, lastError: "", curIdx: 0, replacing: false, guarded: false, exited: false };
 
   // ------------------------------------------------------------------ 표시
   function status(text, frac, hint) {
@@ -193,41 +196,214 @@
       el.style.display = r && v.split("|").includes(r.value) ? "" : "none";     // data-when="md_mode=flow|ww"
     });
   }
-  // 최근 결과(설계·판정 입력)를 이 휴대폰에 기억 — 대시보드 탭·설계/판정 전환·입력 화면 채우기에 쓴다
+  // ------------------------------------------------------------------ 이번 사용 중의 입력·결과(앱을 나가면 지워짐)
+  // 2026-11-19 사용자 요청: 앱을 나가면 입력값을 지우고, 다시 들어오면 처음 화면(홈)부터. 그래서 최근 입력·결과는 이번 실행 동안만 남는
+  // sessionStorage에 둔다(앱을 닫으면 휴대폰 브라우저가 지운다). 남겨 둘 입력은 '입력 저장'으로 이 휴대폰(localStorage)에 따로 둔다.
+  const LAST = "fpapp-last", SAVED = "fpapp-saved", SAVED_MAX = 30;
   function lastGet() {
-    try { return JSON.parse(localStorage.getItem("fpapp-last") || "{}"); } catch (e) { return {}; }
+    try { return JSON.parse(sessionStorage.getItem(LAST) || "{}"); } catch (e) { return {}; }
+  }
+  function lastPut(v) {
+    try { sessionStorage.setItem(LAST, JSON.stringify(v)); } catch (e) { /* 저장이 안 되는 환경이면 기억하지 않는다 */ }
   }
   function lastSet(mode, query, newCalc) {
-    try {
-      const v = lastGet();
-      // 새로 계산했으면(입력·예제에서 왔거나 입력이 바뀜) 입력 화면을 다시 그 입력으로 채운다. 대시보드 탭으로 옛 결과를 다시 볼 때는 그대로 둔다
-      if (v.fresh && (newCalc || v[mode] !== query)) delete v.fresh[mode];
-      v[mode] = query;
-      v.mode = mode;
-      localStorage.setItem("fpapp-last", JSON.stringify(v));
-    } catch (e) { /* 저장이 안 되는 환경이면 기억하지 않는다 */ }
+    const v = lastGet();
+    // 새로 계산했으면(입력·예제에서 왔거나 입력이 바뀜) 입력 화면을 다시 그 입력으로 채운다. 결과 탭으로 옛 결과를 다시 볼 때는 그대로 둔다
+    if (v.fresh && (newCalc || v[mode] !== query)) delete v.fresh[mode];
+    v[mode] = query;
+    v.mode = mode;
+    lastPut(v);
   }
-  // 입력 초기화: 마지막 결과(대시보드)는 남기고, 입력 화면만 다음 계산 전까지 비워 둔다
+  // 입력 초기화: 마지막 결과는 남기고, 입력 화면만 다음 계산 전까지 비워 둔다
   function freshSet(mode) {
-    try {
-      const v = lastGet();
-      v.fresh = v.fresh || {};
-      v.fresh[mode] = true;
-      localStorage.setItem("fpapp-last", JSON.stringify(v));
-    } catch (e) { /* 저장이 안 되면 이번 화면만 비운다 */ }
+    const v = lastGet();
+    v.fresh = v.fresh || {};
+    v.fresh[mode] = true;
+    lastPut(v);
   }
+  function clearSession() {
+    try { sessionStorage.removeItem(LAST); } catch (e) { /* 없으면 그만 */ }
+  }
+
+  // ------------------------------------------------------------------ 뒤로 가기 기록: 칸마다 history.state.fp = 0, 1, 2…(0 = 앱을 연 칸)
+  // 나갈 때 앱을 연 칸으로 돌아가 두고(안드로이드는 거기서 뒤로 가기 한 번이면 앱이 닫힘), 맨 처음 화면에서 뒤로 가면 '정말 나가시겠습니까?'를 묻는다.
+  function stampIdx() {
+    const s = history.state;
+    if (s && typeof s.fp === "number") {
+      st.curIdx = s.fp;                                             // 뒤로·앞으로 돌아온 칸
+    } else {                                                        // 새 칸(링크·양식 제출) 또는 바꿔 쓴 칸(location.replace)
+      st.curIdx = st.replacing ? st.curIdx : st.curIdx + 1;
+      history.replaceState({ fp: st.curIdx }, "", location.href);
+    }
+    st.replacing = false;
+  }
+  function goReplace(hash) {
+    if (location.hash === hash) { route(); return; }
+    st.replacing = true;
+    location.replace(hash);
+  }
+  // 앱을 연 칸(0)에서 뒤로 가기를 누르면 확인 없이 앱이 닫히므로, 처음 누를 때 같은 화면 칸(1)을 하나 더 둔다.
+  // 사람이 누르지 않은 때 넣은 칸은 크롬이 뒤로 가기에서 건너뛰므로 꼭 누름·입력 순간에 넣는다.
+  function armGuard() {
+    if (!st.rt || st.exited || st.guarded || st.curIdx !== 0) return;
+    history.pushState({ fp: 1, guard: true }, "", location.href);
+    st.curIdx = 1;
+    st.guarded = true;
+  }
+  function rearmGuard() {
+    history.pushState({ fp: 1, guard: true }, "", location.href);
+    st.curIdx = 1;
+    st.guarded = true;
+  }
+
+  // ------------------------------------------------------------------ 확인 창(나가기·덮어쓰기·지우기)
+  function ask({ title, text, ok = "확인", cancel = "취소", danger = false }) {
+    return new Promise((resolve) => {
+      const box = $("dialog"), okb = $("dlg-ok"), cb = $("dlg-cancel");
+      $("dlg-title").textContent = title;
+      $("dlg-text").textContent = text;
+      okb.textContent = ok;
+      cb.textContent = cancel;
+      okb.classList.toggle("danger", danger);
+      const done = (v) => {
+        box.hidden = true;
+        okb.onclick = cb.onclick = box.onclick = null;
+        resolve(v);
+      };
+      okb.onclick = () => done(true);
+      cb.onclick = () => done(false);
+      box.onclick = (e) => { if (e.target === box) done(false); };      // 바깥을 누르면 취소
+      box.hidden = false;
+      setTimeout(() => cb.focus(), 30);
+    });
+  }
+  const askExit = () => ask({
+    title: "정말 나가시겠습니까?",
+    text: "나가면 지금까지 넣은 입력값과 계산 결과가 지워집니다.\n남겨 두려면 ‘취소’를 누르고 설계·판정 입력 화면의 ‘입력 저장’을 먼저 누르세요.",
+    ok: "나가기", cancel: "취소", danger: true,
+  });
+
+  // ------------------------------------------------------------------ 나가기: 입력값을 지우고 '닫아도 됩니다' 화면
+  // 웹앱은 스스로 창을 닫을 수 없어(안드로이드·아이폰 공통) 앱을 연 칸으로 돌아가 안내만 한다.
+  function leave() {
+    clearSession();
+    st.exited = true;
+    st.guarded = false;
+    $("toast").hidden = true;
+    const back = st.curIdx;
+    if (back > 0) history.go(-back);                                  // 돌아가면 popstate·route가 안내 화면을 그린다
+    else renderBye();
+    try { if (history.length <= 1) window.close(); } catch (e) { /* 닫을 수 없는 창이면 안내 화면만 */ }
+  }
+  function renderBye() {
+    busy(false);
+    $("app").innerHTML =
+      '<header class="appbar"><div class="row"><img class="logo" src="logo.png" alt="DONGIL"><span class="title">필터프레스 선정·판정</span></div></header>' +
+      '<main><section class="card bye"><h2>입력값을 지웠습니다</h2>' +
+      '<p>이제 앱을 닫아도 됩니다. 안드로이드는 뒤로 가기를 한 번 더 누르면 닫히고, 아이폰은 화면 아래 가장자리를 위로 쓸어 올려 나가세요.</p>' +
+      '<p class="muted small">‘입력 저장’으로 남긴 입력은 이 휴대폰에 그대로 있어 다음에 ‘불러오기’로 열 수 있습니다.</p>' +
+      '<button class="btn primary block" type="button" data-restart>처음 화면으로</button></section></main>';
+    document.title = "필터프레스 선정·판정";
+    window.scrollTo(0, 0);
+  }
+  function restart() {
+    st.exited = false;
+    history.replaceState({ fp: st.curIdx, root: st.curIdx === 0 }, "", location.pathname + location.search + "#/home");
+    route();
+  }
+
+  // ------------------------------------------------------------------ 입력 저장·불러오기(이 휴대폰에만 — 앱을 나가도 남는다)
+  function savedGet() {
+    try { return JSON.parse(localStorage.getItem(SAVED) || "{}"); } catch (e) { return {}; }
+  }
+  function savedPut(v) {
+    try { localStorage.setItem(SAVED, JSON.stringify(v)); return true; } catch (e) { return false; }
+  }
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function stamp(d) {
+    const p = (n) => String(n).padStart(2, "0");
+    return isNaN(d) ? "" : `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  async function saveInputs(btn) {
+    const form = btn.closest("form");
+    if (!form) return;
+    const mode = btn.dataset.save === "judge" ? "judge" : "design";
+    const q = new URLSearchParams(new FormData(form)).toString();
+    const proj = ((form.elements.project && form.elements.project.value) || "").trim();
+    const name = proj || `이름 없음 ${stamp(new Date()).slice(5)}`;     // 프로젝트 이름이 없으면 저장 시각으로 구별
+    const all = savedGet();
+    const list = Array.isArray(all[mode]) ? all[mode] : [];
+    const i = list.findIndex((x) => x.name === name);
+    if (i >= 0 && !(await ask({ title: "같은 이름으로 저장한 입력이 있습니다", text: `‘${name}’을(를) 지금 입력으로 바꿀까요?`, ok: "바꾸기" }))) return;
+    if (i >= 0) list.splice(i, 1);
+    list.unshift({ name, at: new Date().toISOString(), q });
+    all[mode] = list.slice(0, SAVED_MAX);
+    if (!savedPut(all)) {
+      toast("저장하지 못했습니다. 휴대폰 저장 공간을 확인해 주세요.");
+      return;
+    }
+    toast(`입력을 저장했습니다 — ${name}. 다음에 ‘불러오기’로 엽니다.`);
+  }
+  function openSaved(mode) {
+    const list = savedGet()[mode] || [];
+    $("sheet-title").textContent = mode === "judge" ? "저장한 판정 입력" : "저장한 설계 입력";
+    $("sheet-list").innerHTML = list.length
+      ? list.map((x, i) => `<li><div class="nm"><b>${esc(x.name)}</b><span>${esc(stamp(new Date(x.at)))}</span></div>` +
+          `<div class="sb"><button type="button" data-pick="${i}">불러오기</button><button type="button" class="del" data-del="${i}">지우기</button></div></li>`).join("")
+      : '<li class="empty">저장한 입력이 없습니다. 입력 화면 아래 ‘입력 저장’을 누르면 여기에 남습니다.</li>';
+    $("sheet").dataset.mode = mode;
+    $("sheet").hidden = false;
+  }
+  $("sheet").addEventListener("click", async (e) => {
+    const t = e.target;
+    const mode = $("sheet").dataset.mode === "judge" ? "judge" : "design";
+    if (t === $("sheet") || t.closest("#sheet-close")) {
+      $("sheet").hidden = true;
+      return;
+    }
+    const pick = t.closest("[data-pick]"), del = t.closest("[data-del]");
+    const all = savedGet();
+    const list = all[mode] || [];
+    if (pick) {
+      const x = list[Number(pick.dataset.pick)];
+      $("sheet").hidden = true;
+      if (!x) return;
+      const target = "#/" + mode + "?" + x.q;
+      if (location.hash === target) route();
+      else location.hash = target;
+      toast(`‘${x.name}’ 입력을 불러왔습니다.`);
+    } else if (del) {
+      const i = Number(del.dataset.del), x = list[i];
+      if (x && await ask({ title: "저장한 입력 지우기", text: `‘${x.name}’을(를) 지울까요? 되돌릴 수 없습니다.`, ok: "지우기", danger: true })) {
+        list.splice(i, 1);
+        all[mode] = list;
+        savedPut(all);
+        openSaved(mode);
+      }
+    }
+  });
 
   async function route() {
     if (!st.rt) return;
+    if (st.exited) {                                                 // 나간 뒤에는 뒤로 가기로 옛 화면(주소에 남은 입력)이 다시 보이지 않게
+      renderBye();
+      return;
+    }
+    stampIdx();
     let { path, query } = parseHash();
     const last = lastGet();
-    if (path === "/" && last.mode && last[last.mode]) {             // 대시보드 탭: 최근 결과로
-      location.replace("#/dash?" + last[last.mode]);
+    if (path === "/") {                                             // 결과 탭: 이번 실행에서 마지막으로 본 결과로
+      if (last.mode && last[last.mode]) {
+        goReplace("#/dash?" + last[last.mode]);
+      } else {
+        goReplace("#/home");
+        toast("아직 계산한 결과가 없습니다. 설계·판정에서 계산하면 ‘결과’에 나옵니다.");
+      }
       return;
     }
     if (path === "/switch") {                                       // 설계 ↔ 판정 전환
       const mode = new URLSearchParams(query).get("mode") === "judge" ? "judge" : "design";
-      location.replace(last[mode] ? "#/dash?" + last[mode] : "#/" + mode);
+      goReplace(last[mode] ? "#/dash?" + last[mode] : "#/" + mode);
       return;
     }
     if (path === "/design" || path === "/judge") {
@@ -235,14 +411,16 @@
       if (new URLSearchParams(query).has("fresh")) {                // 입력 초기화 → 빈 입력 화면
         freshSet(mode);
         query = "";
-        history.replaceState(null, "", "#" + path);                 // 주소에 남기지 않는다(뒤로 가기·새로고침에 다시 지우지 않게)
+        history.replaceState({ fp: st.curIdx }, "", "#" + path);    // 주소에 남기지 않는다(뒤로 가기·새로고침에 다시 지우지 않게)
       } else if (!query && last[mode] && !(last.fresh && last.fresh[mode])) {
-        query = last[mode];                                         // 입력 화면은 최근 입력으로 채운다
+        query = last[mode];                                         // 입력 화면은 이번 실행의 최근 입력으로 채운다
       }
     }
     if (path === "/logout") {
-      if (confirm("이 휴대폰에서 잠글까요? 다시 열려면 직원 비밀번호가 필요합니다.")) {
+      if (await ask({ title: "이 휴대폰에서 잠글까요?", text: "다시 열려면 직원 비밀번호가 필요합니다. 넣은 입력값도 지워집니다(‘입력 저장’으로 남긴 입력은 남습니다).",
+                      ok: "잠그기", danger: true })) {
         await kv("del", "keys");
+        clearSession();
         location.replace(location.pathname + location.search);   // 주소 끝(#…)을 지우고 처음부터 다시 연다
       } else {
         history.back();
@@ -250,7 +428,7 @@
       return;
     }
     if (path.endsWith(".xlsx")) {           // 엑셀 주소로 바로 들어오면 결과 화면으로
-      location.replace("#" + path.slice(0, -5) + (query ? "?" + query : ""));
+      goReplace("#" + path.slice(0, -5) + (query ? "?" + query : ""));
       return;
     }
     if (query) {
@@ -281,7 +459,7 @@
     st.newCalc = false;
     syncWhen();
     window.scrollTo(0, 0);
-    // 대시보드 경고의 '입력창' 단추(#/design?…&goto=칸 이름) → 그 칸으로 내려가 깜빡임(dash.js)
+    // 결과 화면 경고의 '입력창' 단추(#/design?…&goto=칸 이름) → 그 칸으로 내려가 깜빡임(dash.js)
     const goto = (path === "/design" || path === "/judge") ? new URLSearchParams(query).get("goto") : null;
     if (goto && window.fpGotoField) window.fpGotoField(goto);
   }
@@ -290,6 +468,51 @@
   // 입력 양식 제출·예제 결과 단추 = 새 계산(입력 초기화 표시를 푼다)
   document.addEventListener("click", (e) => {
     if (e.target && e.target.closest && e.target.closest('#app a[href^="#/dash?"]')) st.newCalc = true;
+  });
+  // 처음 누르는 순간 뒤로 가기 지킴 칸을 둔다(위 armGuard). 누른 것이 링크면 그 이동은 지킴 칸 다음에 쌓인다
+  document.addEventListener("click", armGuard, true);
+  document.addEventListener("keydown", armGuard, true);
+  // 나가기·입력 저장·불러오기·처음 화면으로
+  document.addEventListener("click", (e) => {
+    const t = e.target && e.target.closest ? e.target : null;
+    if (!t) return;
+    if (t.closest("#app [data-exit]")) {
+      e.preventDefault();
+      askExit().then((ok) => { if (ok) leave(); });
+      return;
+    }
+    const sv = t.closest("#app [data-save]");
+    if (sv) {
+      e.preventDefault();
+      saveInputs(sv);
+      return;
+    }
+    const ld = t.closest("#app [data-load]");
+    if (ld) {
+      e.preventDefault();
+      openSaved(ld.dataset.load === "judge" ? "judge" : "design");
+      return;
+    }
+    if (t.closest("#app [data-restart]")) {
+      e.preventDefault();
+      restart();
+    }
+  });
+  // 뒤로 가기로 앱을 연 칸(0)까지 오면 = 앱을 나가려는 것 → 확인 창. 취소하면 지킴 칸을 다시 둔다(취소 누름이 사용자 조작)
+  window.addEventListener("popstate", (e) => {
+    const s = e.state;
+    if (!st.rt || !s || s.fp !== 0) return;
+    st.curIdx = 0;
+    if (st.exited) {
+      renderBye();
+      return;
+    }
+    if (!st.guarded) return;                                         // 지킴 칸을 둔 적이 없으면(앱을 열고 아무것도 안 함) 그대로
+    st.guarded = false;
+    askExit().then((ok) => {
+      if (ok) leave();
+      else rearmGuard();
+    });
   });
   document.addEventListener("submit", (e) => {
     const f = e.target;
@@ -398,6 +621,10 @@
     rt.init("/app/data");
     st.py = py;
     st.rt = rt;
+    try { localStorage.removeItem(LAST); } catch (e) { /* 예전 판이 이 휴대폰에 남긴 최근 입력 — 이제는 앱을 나가면 지운다 */ }
+    // 앱에 들어오면 늘 처음 화면(홈)부터(2026-11-19). 이 칸이 앱을 연 칸(fp 0)이다
+    history.replaceState({ fp: 0, root: true }, "", location.pathname + location.search + "#/home");
+    st.curIdx = 0;
     $("boot").hidden = true;
     $("app").hidden = false;
     route();

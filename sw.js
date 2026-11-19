@@ -1,6 +1,6 @@
 // 필터프레스 선정·판정 — 설치형 오프라인 앱 서비스 워커(빌드할 때 판 번호·파일 목록이 채워진다).
 // 앱 파일 전부를 휴대폰에 저장하고 그다음부터는 저장본으로 연다(인터넷 없이). 웹 공간에 새 판을 올리면 다음에 열 때 바꿔 받는다.
-const VERSION = "33d0d94d22e7";
+const VERSION = "cfbe48185b76";
 // 저장소 이름은 앱 주소 경로(예: /dongil-filter/)로 나눈다 — 같은 도메인(<조직>.github.io)에 앱이 여럿 있어도 서로의 저장본을 지우지 않게
 const SCOPE = new URL(self.registration.scope).pathname;
 const PREFIX = "fpapp-phone:" + SCOPE + ":";
