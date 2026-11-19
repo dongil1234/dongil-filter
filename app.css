@@ -99,6 +99,15 @@ label.f input, label.f select {
   background: var(--field); color: var(--ink); width: 100%; font-family: inherit; font-weight: 400;
 }
 label.f input:focus, label.f select:focus { outline: 3px solid rgba(74, 132, 24, .16); border-color: var(--brand); background: #fff; }
+/* 약품 여러 종(설계 ① 처리량): 약품 · 주입량 · 단위 · 함량을 한 줄에 */
+.chem { display: grid; gap: 6px; }
+.chem .ch-head, .chem .ch-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, .9fr); gap: 6px; align-items: center; }
+.chem .ch-head span { font-size: 12.5px; color: #3e4c36; font-weight: 600; }
+.chem select, .chem input {
+  font-size: 16px; min-height: 44px; padding: 6px 6px; border-radius: 10px; border: 1px solid var(--field-line);
+  background: var(--field); color: var(--ink); width: 100%; min-width: 0; font-family: inherit;
+}
+.chem select:focus, .chem input:focus { outline: 3px solid rgba(74, 132, 24, .16); border-color: var(--brand); background: #fff; }
 /* 필수 칸: 이름표 옆 '필수' 띠, 비어 있으면 주황 테두리·연한 바탕, 채우면 초록 테두리 + '✓ 필수' (값이 있으면 placeholder가 안 보임) */
 .rq { display: none; margin-left: 6px; vertical-align: 1px; font-style: normal; }
 .rq b { font-size: 11px; font-weight: 800; padding: 0 7px; border-radius: 999px; line-height: 1.6; white-space: nowrap; }
@@ -129,6 +138,12 @@ label.c input { width: 20px; height: 20px; accent-color: var(--brand); }
 .seg input:checked + span { background: var(--brand); color: #fff; border-color: var(--brand); font-weight: 800; }
 .hint { font-size: 12.5px; color: var(--muted); }
 .msg { padding: 11px 13px; border-radius: 12px; background: var(--msg-bg); color: var(--msg-ink); margin: 0 0 10px; font-size: 14px; }
+/* 대시보드 경고의 '입력창' 단추로 왔을 때: 그 칸을 잠깐 주황 테로 알려 준다(dash.js의 fpGotoField) */
+.goto-hl { border-radius: 12px; animation: gotoFlash 3.6s ease-out 1; }
+@keyframes gotoFlash {
+  0%, 55% { box-shadow: 0 0 0 3px #f0a020, 0 0 0 9px rgba(240, 160, 32, .22); background-color: #fff6e6; }
+  100% { box-shadow: 0 0 0 3px rgba(240, 160, 32, 0), 0 0 0 9px rgba(240, 160, 32, 0); background-color: transparent; }
+}
 
 /* ---------- 처음 화면 ---------- */
 .welcome { color: var(--ink); border-radius: 0 0 28px 28px; padding: 22px 20px 64px; margin: -16px -16px 0; background-color: #e3f0c4;

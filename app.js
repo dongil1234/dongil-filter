@@ -281,6 +281,9 @@
     st.newCalc = false;
     syncWhen();
     window.scrollTo(0, 0);
+    // 대시보드 경고의 '입력창' 단추(#/design?…&goto=칸 이름) → 그 칸으로 내려가 깜빡임(dash.js)
+    const goto = (path === "/design" || path === "/judge") ? new URLSearchParams(query).get("goto") : null;
+    if (goto && window.fpGotoField) window.fpGotoField(goto);
   }
 
   document.addEventListener("change", (e) => { if (e.target && e.target.type === "radio") syncWhen(); });

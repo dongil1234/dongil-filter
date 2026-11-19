@@ -192,6 +192,14 @@
 .fpd .jl p.say { color: var(--ink); font-size: 13.5px; }
 .fpd .jl p.act { color: var(--ink); font-size: 13.5px; font-weight: 600; }
 .fpd .jl p.act::before { content: "→ "; color: var(--b); font-weight: 800; }
+/* 입력창 단추(2026-11-19): 이 항목이 말하는 입력 칸으로 바로 간다 */
+.fpd .jl p.go { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 0; }
+.fpd .jl p.go .gl { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--mut); }
+.fpd .jl p.go .gl .ico { width: 15px; height: 15px; }
+.fpd .jl p.go a { display: inline-flex; align-items: center; gap: 4px; padding: 4px 11px; border-radius: 999px; border: 1px solid #b9d585; background: var(--b-soft);
+  color: var(--b3); font-size: 13px; font-weight: 700; line-height: 1.3; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.fpd .jl p.go a::after { content: "›"; font-weight: 900; color: var(--b); }
+.fpd .jl p.go a:hover, .fpd .jl p.go a:focus-visible { background: #dcedc0; border-color: var(--b); }
 .fpd .kv { display: grid; grid-template-columns: 112px 1fr; gap: 8px 12px; margin: 12px 0 0; font-size: 14px; }
 .fpd .kv dt { color: var(--mut); }
 .fpd .kv dd { margin: 0; overflow-wrap: anywhere; }
